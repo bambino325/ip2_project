@@ -1,15 +1,18 @@
 # This Python file uses the following encoding: utf-8
-import sys, os, string
+import sys, os
 import matplotlib.pyplot as plt
 import itertools as it
 import networkx as nx
+from matplotlib.lines import Line2D
 from collections import Counter
-from PySide2.QtWidgets import QApplication, QWidget
-from PySide2.QtCore import QFile, QObject
+from PySide2.QtWidgets import QApplication, QWidget, QMessageBox, QFileDialog
+from PySide2.QtCore import QFile
 from PySide2.QtUiTools import QUiLoader
-from PyQt5.QtWidgets import QInputDialog, QLineEdit, QDialog, QPushButton
-from PyQt5.QtWidgets import QFileDialog
 
+
+# povezivanje odgovarajucih cvorova
+# prilikom dodavanja veza treba obratiti
+# paznju da je skup povezan samo sa nadskupovima
 def add_edges(layer1, layer2):
     result = []
     for l2 in layer2:
@@ -18,7 +21,7 @@ def add_edges(layer1, layer2):
                 result += zip([l1], [l2])
     return result
 
-
+# kreiranje grafa na osnovu date velicine
 def multilayered_graph(*subset_sizes):
     extents = nx.utils.pairwise(it.accumulate((0,) + subset_sizes))
     layers = [range(start, end) for start, end in extents]
@@ -28,6 +31,7 @@ def multilayered_graph(*subset_sizes):
         G.add_nodes_from(layer, layer=i)
     return G
 
+# povezivanje nivoa
 def draw_edges(G, layers):
     for layer1, layer2 in nx.utils.pairwise(layers):
         G.add_edges_from(add_edges(layer1, layer2))
@@ -38,9 +42,8 @@ class Widget(QWidget):
     def __init__(self):
         QWidget.__init__(self)
         self.load_ui()
-        self.window.setWindowTitle("Minimal closed transation sets")
+        self.window.setWindowTitle("Maximum closed transation sets")
         self.connect_ui()
-
 
     def init_data(self):
         self.flat_superset = []
@@ -50,28 +53,33 @@ class Widget(QWidget):
         self.subset_sizes = []
         self.support = {}
         self.frequent = []
+        self.max_frequent = []
         self.closed_itemset = []
         self.min_support = 2
-
-
 
     def connect_ui(self):
         self.window.loadTButton.clicked.connect(self.load_transaction_button_clicked)
         self.window.drawGButton.clicked.connect(self.draw_grid_button_clicked)
 
+    # ucitavanje skupa transakcija iz fajla
     def read_transactions(self):
         fname, _ = QFileDialog().getOpenFileName(None , 'Source Text', '', 'Text files (*.txt)')
-        print(fname)
         i = 0
-        file = open(fname, "r")
-        for line in file:
-            # obrada ulaza
-            self.transactions[i] = line
-            i += 1
-        self.window.listWidget3.clear()
-        self.window.listWidget3.addItems(self.transactions.values())
-        file.close()
+        try:
+            with open(fname, "r") as file:
+                for line in file:
 
+                    self.transactions[i] = line
+                    i += 1
+        except Exception as e:
+            QMessageBox.critical(None, 'Error', f'Error reading file: {str(e)}')
+            return
+        self.window.listWidget3.clear()
+        for key, transaction in self.transactions.items():
+            item_text = f"{key+1}: {transaction}"
+            self.window.listWidget3.addItem(item_text)
+
+    # u itemsetu se cuvaju pojedinacne stavke
     def update_data(self):
         for transaction in self.transactions.values():
             for item in transaction:
@@ -82,13 +90,17 @@ class Widget(QWidget):
                 else:
                     self.itemset[item] += 1
 
-        itemset = dict(sorted(self.itemset.items()))
+        self.itemset = dict(sorted(self.itemset.items()))
 
+        # generisanje svih kombinacija stavki razlicitih duzina
         i = 1
-        while (i <= len(itemset)):
-            self.superset.append(list(map(''.join,list(it.combinations(self.itemset, i)))))
+        while (i <= len(self.itemset)):
+            self.superset.append(list(map(''.join, sorted(list(it.combinations(self.itemset, i))))))
             i += 1
 
+        # izdvajanje podataka u potrebne kolekcije
+        # subset_sizes cuva velicinu svakog nivoa resetka,
+        # (potrebno za crtanje)
         for row in self.superset:
             size = 0
             for el in row:
@@ -97,57 +109,69 @@ class Widget(QWidget):
                 size += 1
             self.subset_sizes.append(size)
 
-
-
     def load_transaction_button_clicked(self):
         self.init_data()
         self.window.listWidget1.clear()
+        self.window.listWidget2.clear()
         self.window.listWidget4.clear()
         self.read_transactions()
         self.update_data()
 
+    #izdvajanje cestih skupova stavki
     def calculate_support(self):
         pairs = {frozenset(x) for x in self.flat_superset}
         frequnce = Counter(pair for pair in pairs for t in self.transactions.values() if pair.issubset(t))
         for k, v in sorted(frequnce.items()):
             s = ''.join(list(sorted(k)))
             self.support[s] = v
+            if v >= self.min_support:
+                self.frequent.append(s)
 
     def closed_sets(self):
         depth = 1
-        n = len(self.superset) - 1
-        while(depth < n):
+        while (depth < (len(self.superset)-1)):
             width = 0
-            m = len(self.superset[depth])
-            while(width < m):
+
+            #   za svaki element superset[depth][width]
+            #   treba proveriti da li neki njegov neposredni nadskup (depth+1)
+            #   ima istu podrsku, ako ima onda nije zatvoren
+
+            while (width < len(self.superset[depth])):
+                el = self.superset[depth][width]
                 k = 0
-        # za svaki element superset[depth][width] treba proveriti roditelje koji ga sadrze
                 closed = True
-                l = len(self.superset[depth+1])
-                while k < l:
-                    if all(x in self.superset[depth+1][k] for x in self.superset[depth][width]):
-                        if (self.support[self.superset[depth][width]] == self.support[self.superset[depth+1][k]]):
+
+                #   ova petlja prolazi kroz nadskupove
+                while k < len(self.superset[depth+1]):
+                    if all(x in self.superset[depth+1][k] for x in el):
+                        if (self.support[el] == self.support[self.superset[depth+1][k]]):
                             closed = False
                     k += 1
 
-                if closed == True:
+                #   ukoliko ne postoji nadskup sa istom podrskom --> zatvoren
+                if closed is True and el in self.frequent:
                     self.closed_itemset.append(self.superset[depth][width])
 
                 width += 1
             depth += 1
 
     def max_sets(self):
+        # petlja ide od kraja, pa ce prvo ubaciti najduze skupove stavki
+        # koji su cesti, i za ostale proveravati da li su podskupovi
+        # nekog od max cestih, ako jeste podskup onda nije max cest
         for el in reversed(self.flat_superset):
             ind = False
-            for freq in self.frequent:
+
+            for freq in self.max_frequent:
                 if all(x in freq for x in el):
                     ind = True
             if ind:
                 continue
 
             if self.support[el] >= self.min_support:
-                self.frequent.append(el)
+                self.max_frequent.append(el)
 
+    # funkcija za iscrtavanja resetke
     def draw_grid(self):
         color_map = []
         G = multilayered_graph(*self.subset_sizes)
@@ -158,37 +182,59 @@ class Widget(QWidget):
         G = draw_edges(G, self.superset)
 
         for el in self.flat_superset:
-            if el in self.frequent and el in self.closed_itemset:
-                color_map.append('blue')
-            elif el in self.frequent:
+            if el in self.max_frequent and el in self.closed_itemset:
+                color_map.append('magenta')
+            elif el in self.max_frequent:
                 color_map.append('red')
             elif el in self.closed_itemset:
-                color_map.append('green')
+                color_map.append('lightgreen')
+            elif el in self.frequent:
+                color_map.append('orange')
             else:
                 color_map.append('lightblue')
 
         pos = nx.multipartite_layout(G, subset_key="layer", align='horizontal')
         flipped_pos = {node: (-x, -y) for (node, (x, y)) in pos.items()}
-        plt.figure(figsize=(14, 6))
-        nx.draw(G, flipped_pos, with_labels=True,node_color=color_map, node_size=800)
-
+        plt.figure(figsize=(16, 8))
+        nx.draw(G, flipped_pos, with_labels=True,node_color=color_map, node_size=500)
+        legend_elements = [
+            Line2D([0], [0], marker='o', color='w', label='basic node',markerfacecolor='lightblue', markersize=15),
+            Line2D([0], [0], marker='o', color='w', label='frequent',markerfacecolor='orange', markersize=15),
+            Line2D([0], [0], marker='o', color='w', label='max_frequent',markerfacecolor='red', markersize=15),
+            Line2D([0], [0], marker='o', color='w', label='closed',markerfacecolor='lightgreen', markersize=15),
+            Line2D([0], [0], marker='o', color='w', label='closed and max_frequent',markerfacecolor='magenta', markersize=15)
+        ]
+        plt.legend(handles=legend_elements)
         plt.show()
 
+    # ispis skupova u odgovarajuce prozore
     def update_list_widgets(self):
         self.window.listWidget1.clear()
+        self.window.listWidget2.clear()
         self.window.listWidget4.clear()
-        self.window.listWidget1.addItems(self.frequent)
-        self.window.listWidget4.addItems(self.closed_itemset)
+        self.max_frequent = sorted(self.max_frequent)
+        self.closed_itemset = sorted(self.closed_itemset)
+        max_closed = sorted(list(set(self.max_frequent) & set(self.closed_itemset)))
+
+        for el in self.max_frequent:
+            self.window.listWidget1.addItem(el + " ---> " + str(self.support[el]))
+        for el in self.closed_itemset:
+            self.window.listWidget4.addItem(el + " ---> " + str(self.support[el]))
+        for el in max_closed:
+            self.window.listWidget2.addItem(el + " ---> " + str(self.support[el]))
 
     def draw_grid_button_clicked(self):
-        self.min_support = int(self.window.support.text())
-       # print("draw grid clicked, support is " + self.min_support)
+        support_line = self.window.support.text()
+        if support_line == "" or not support_line.isnumeric():
+            self.min_support = 2
+        else:
+            self.min_support = int(self.window.support.text())
+
         self.calculate_support()
         self.closed_sets()
         self.max_sets()
         self.draw_grid()
         self.update_list_widgets()
-
 
     def load_ui(self):
         loader = QUiLoader()
@@ -197,7 +243,6 @@ class Widget(QWidget):
         ui_file.open(QFile.ReadWrite)
         self.window = loader.load(ui_file)
         ui_file.close()
-
 
 
     def show(self):
@@ -210,5 +255,3 @@ if __name__ == "__main__":
     window.show()
 
     sys.exit(app.exec_())
-
-

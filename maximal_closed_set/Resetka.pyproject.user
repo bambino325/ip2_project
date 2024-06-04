@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE QtCreatorProject>
-<!-- Written by QtCreator 7.0.2, 2024-02-12T14:59:51. -->
+<!-- Written by QtCreator 7.0.2, 2024-06-04T04:24:07. -->
 <qtcreator>
  <data>
   <variable>EnvironmentId</variable>
@@ -118,16 +118,16 @@
     <valuelist type="QVariantList" key="CustomOutputParsers"/>
     <value type="int" key="PE.EnvironmentAspect.Base">2</value>
     <valuelist type="QVariantList" key="PE.EnvironmentAspect.Changes"/>
-    <value type="QString" key="ProjectExplorer.ProjectConfiguration.DisplayName">C:/MATF/ip2/test/mainwindow.py</value>
-    <value type="QString" key="ProjectExplorer.ProjectConfiguration.Id">PythonEditor.RunConfiguration.C:/MATF/ip2/test/mainwindow.py</value>
-    <value type="QString" key="ProjectExplorer.RunConfiguration.BuildKey">C:/MATF/ip2/test/mainwindow.py</value>
+    <value type="QString" key="ProjectExplorer.ProjectConfiguration.DisplayName">C:/MATF/ip2/Resetka/resetka.py</value>
+    <value type="QString" key="ProjectExplorer.ProjectConfiguration.Id">PythonEditor.RunConfiguration.C:/MATF/ip2/Resetka/resetka.py</value>
+    <value type="QString" key="ProjectExplorer.RunConfiguration.BuildKey">C:/MATF/ip2/Resetka/resetka.py</value>
     <value type="QString" key="PythonEditor.RunConfiguation.Interpreter">{afb670f9-51cb-4f17-9011-a98c417f7458}</value>
-    <value type="QString" key="PythonEditor.RunConfiguation.Script">C:\MATF\ip2\test\mainwindow.py</value>
+    <value type="QString" key="PythonEditor.RunConfiguation.Script">C:\MATF\ip2\Resetka\resetka.py</value>
     <value type="bool" key="RunConfiguration.UseCppDebugger">false</value>
     <value type="bool" key="RunConfiguration.UseCppDebuggerAuto">true</value>
     <value type="bool" key="RunConfiguration.UseQmlDebugger">false</value>
     <value type="bool" key="RunConfiguration.UseQmlDebuggerAuto">true</value>
-    <value type="QString" key="RunConfiguration.WorkingDirectory.default">C:/MATF/ip2/test</value>
+    <value type="QString" key="RunConfiguration.WorkingDirectory.default">C:/MATF/ip2/Resetka</value>
    </valuemap>
    <value type="qlonglong" key="ProjectExplorer.Target.RunConfigurationCount">1</value>
   </valuemap>
